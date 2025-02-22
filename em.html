@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Orientation Detection</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+      }
+      #orientation {
+        font-size: 24px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Device Orientation Detection</h1>
+    <div id="orientation">
+      <p>Alpha (Z-axis): <span id="alpha">0</span></p>
+      <p>Beta (X-axis): <span id="beta">0</span></p>
+      <p>Gamma (Y-axis): <span id="gamma">0</span></p>
+    </div>
+
+    <script>
+      window.addEventListener("deviceorientation", function (event) {
+        // Alpha: Rotation around the Z-axis (0 to 360 degrees)
+        const alpha = event.alpha;
+        // Beta: Rotation around the X-axis (-180 to 180 degrees)
+        const beta = event.beta;
+        // Gamma: Rotation around the Y-axis (-90 to 90 degrees)
+        const gamma = event.gamma;
+
+        // Update the display with the orientation values
+        document.getElementById("alpha").textContent = alpha.toFixed(2);
+        document.getElementById("beta").textContent = beta.toFixed(2);
+        document.getElementById("gamma").textContent = gamma.toFixed(2);
+      });
+
+      // Optional: Handle device motion for more detailed information
+      window.addEventListener("devicemotion", function (event) {
+        const acceleration = event.acceleration;
+        const accelerationIncludingGravity = event.accelerationIncludingGravity;
+        const rotationRate = event.rotationRate;
+
+        // You can use these values for more advanced motion detection
+      });
+    </script>
+  </body>
+</html>
