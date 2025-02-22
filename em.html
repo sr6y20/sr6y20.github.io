@@ -1,180 +1,162 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>高级小球控制 - 优化版</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #2c3e50;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        #ball {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: radial-gradient(circle at 30% 30%, #ff6f61, #e74c3c);
-            border-radius: 50%;
-            box-shadow: 
-                0 0 20px rgba(231, 76, 60, 0.5),
-                0 5px 15px rgba(0, 0, 0, 0.3);
-            transform: translate(-50%, -50%);
-            transition: transform 0.1s;
-        }
-        #ball::after {
-            content: '';
-            position: absolute;
-            top: 15%;
-            left: 15%;
-            width: 20%;
-            height: 20%;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-        }
-        #permissionBtn {
-            position: fixed;
-            top: 20px;
-            padding: 10px 20px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #2c3e50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+      #ball {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        background: radial-gradient(circle at 30% 30%, #ff6f61, #e74c3c);
+        border-radius: 50%;
+        box-shadow: 0 0 20px rgba(231, 76, 60, 0.5),
+          0 5px 15px rgba(0, 0, 0, 0.3);
+        transform: translate(-50%, -50%);
+        transition: transform 0.1s;
+      }
+      #ball::after {
+        content: "";
+        position: absolute;
+        top: 15%;
+        left: 15%;
+        width: 20%;
+        height: 20%;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+      }
     </style>
-</head>
-<body>
-    <button id="permissionBtn">请求震动权限</button>
+  </head>
+  <body>
     <div id="ball"></div>
     <script>
-        // 获取元素
-        const ball = document.getElementById('ball');
-        const permissionBtn = document.getElementById('permissionBtn');
+      // 获取元素
+      const ball = document.getElementById("ball");
+      const permissionBtn = document.getElementById("permissionBtn");
 
-        // 物理参数配置
-        const config = {
-            accelerationFactor: 0.1,   // 加速度系数（增大灵敏度）
-            damping: 0.88,             // 阻尼系数（更快减速）
-            bounceFactor: 0.05,          // 反弹力度
-            minSpeed: 0.1,             // 最小速度（低于此值会停止）
-            deadZone: 5,               // 陀螺仪死区（忽略微小移动）
-            maxVibration: 30           // 最大震动时长
-        };
+      // 物理参数配置
+      const config = {
+        accelerationFactor: 0.1, // 加速度系数（增大灵敏度）
+        damping: 0.88, // 阻尼系数（更快减速）
+        bounceFactor: 0.05, // 反弹力度
+        minSpeed: 0.1, // 最小速度（低于此值会停止）
+        deadZone: 5, // 陀螺仪死区（忽略微小移动）
+        maxVibration: 30, // 最大震动时长
+      };
 
-        // 初始化状态
-        let screenWidth, screenHeight;
-        let posX, posY;
-        let velocityX = 0, velocityY = 0;
+      // 初始化状态
+      let screenWidth, screenHeight;
+      let posX, posY;
+      let velocityX = 0,
+        velocityY = 0;
 
-        // 初始化函数
-        function init() {
-            screenWidth = window.innerWidth;
-            screenHeight = window.innerHeight;
-            posX = Math.min(screenWidth - 25, Math.max(25, screenWidth / 2));
-            posY = Math.min(screenHeight - 25, Math.max(25, screenHeight / 2));
-            ball.style.left = `${posX}px`;
-            ball.style.top = `${posY}px`;
+      // 初始化函数
+      function init() {
+        screenWidth = window.innerWidth;
+        screenHeight = window.innerHeight;
+        posX = Math.min(screenWidth - 25, Math.max(25, screenWidth / 2));
+        posY = Math.min(screenHeight - 25, Math.max(25, screenHeight / 2));
+        ball.style.left = `${posX}px`;
+        ball.style.top = `${posY}px`;
+      }
+
+      // 震动权限请求
+      if (navigator.vibrate) {
+            await navigator.permissions.query({ name: "vibrate" });
+            navigator.vibrate(10); // 短暂震动测试
+          }
+
+      // 更新函数（含防抖动优化）
+      function update() {
+        // 更新位置
+        posX += velocityX;
+        posY += velocityY;
+
+        // 边界碰撞检测（精确到像素）
+        const ballRadius = 25; // 明确指定半径（避免offsetWidth误差）
+        let bounced = false;
+
+        // 水平边界
+        if (posX < ballRadius) {
+          velocityX = Math.abs(velocityX) * config.bounceFactor;
+          posX = ballRadius;
+          bounced = true;
+        } else if (posX > screenWidth - ballRadius) {
+          velocityX = -Math.abs(velocityX) * config.bounceFactor;
+          posX = screenWidth - ballRadius;
+          bounced = true;
         }
 
-        // 震动权限请求（同之前版本）
-        permissionBtn.addEventListener('click', async () => {
-            try {
-                if (navigator.vibrate) {
-                    await navigator.permissions.query({ name: 'vibrate' });
-                    navigator.vibrate(10); // 短暂震动测试
-                    permissionBtn.style.display = 'none';
-                }
-            } catch (e) {
-                console.log('Vibration API not supported');
-            }
-        });
+        // 垂直边界
+        if (posY < ballRadius) {
+          velocityY = Math.abs(velocityY) * config.bounceFactor;
+          posY = ballRadius;
+          bounced = true;
+        } else if (posY > screenHeight - ballRadius) {
+          velocityY = -Math.abs(velocityY) * config.bounceFactor;
+          posY = screenHeight - ballRadius;
+          bounced = true;
+        }
 
-        // 更新函数（含防抖动优化）
-        function update() {
-            // 更新位置
-            posX += velocityX;
-            posY += velocityY;
+        // 触觉反馈优化（只在显著碰撞时触发）
+        if (bounced && (Math.abs(velocityX) > 1 || Math.abs(velocityY) > 1)) {
+          const intensity = Math.min(
+            (Math.abs(velocityX) + Math.abs(velocityY)) * 3,
+            config.maxVibration
+          );
+          navigator.vibrate(intensity);
+        }
 
-            // 边界碰撞检测（精确到像素）
-            const ballRadius = 25; // 明确指定半径（避免offsetWidth误差）
-            let bounced = false;
+        // 速度衰减 + 防抖动停止
+        velocityX *= config.damping;
+        velocityY *= config.damping;
+        if (Math.abs(velocityX) < config.minSpeed) velocityX = 0;
+        if (Math.abs(velocityY) < config.minSpeed) velocityY = 0;
 
-            // 水平边界
-            if (posX < ballRadius) {
-                velocityX = Math.abs(velocityX) * config.bounceFactor;
-                posX = ballRadius;
-                bounced = true;
-            } else if (posX > screenWidth - ballRadius) {
-                velocityX = -Math.abs(velocityX) * config.bounceFactor;
-                posX = screenWidth - ballRadius;
-                bounced = true;
-            }
+        // 更新位置
+        ball.style.left = `${posX}px`;
+        ball.style.top = `${posY}px`;
 
-            // 垂直边界
-            if (posY < ballRadius) {
-                velocityY = Math.abs(velocityY) * config.bounceFactor;
-                posY = ballRadius;
-                bounced = true;
-            } else if (posY > screenHeight - ballRadius) {
-                velocityY = -Math.abs(velocityY) * config.bounceFactor;
-                posY = screenHeight - ballRadius;
-                bounced = true;
-            }
-
-            // 触觉反馈优化（只在显著碰撞时触发）
-            if (bounced && (Math.abs(velocityX) > 1 || Math.abs(velocityY) > 1)) {
-                const intensity = Math.min(
-                    (Math.abs(velocityX) + Math.abs(velocityY)) * 3,
-                    config.maxVibration
-                );
-                navigator.vibrate(intensity);
-            }
-
-            // 速度衰减 + 防抖动停止
-            velocityX *= config.damping;
-            velocityY *= config.damping;
-            if (Math.abs(velocityX) < config.minSpeed) velocityX = 0;
-            if (Math.abs(velocityY) < config.minSpeed) velocityY = 0;
-
-            // 更新位置
-            ball.style.left = `${posX}px`;
-            ball.style.top = `${posY}px`;
-
-            // 3D 倾斜效果（优化平滑度）
-            ball.style.transform = `translate(-50%, -50%) 
-                rotateX(${velocityY * 0.8}deg) 
+        // 3D 倾斜效果（优化平滑度）
+        ball.style.transform = `translate(-50%, -50%)
+                rotateX(${velocityY * 0.8}deg)
                 rotateY(${velocityX * 0.8}deg)`;
 
-            requestAnimationFrame(update);
-        }
+        requestAnimationFrame(update);
+      }
 
-        // 陀螺仪监听（增加死区过滤）
-        window.addEventListener('deviceorientation', (event) => {
-            let beta = event.beta || 0;
-            let gamma = event.gamma || 0;
+      // 陀螺仪监听（增加死区过滤）
+      window.addEventListener("deviceorientation", (event) => {
+        let beta = event.beta || 0;
+        let gamma = event.gamma || 0;
 
-            // 死区过滤（忽略微小移动）
-            if (Math.abs(beta) < config.deadZone) beta = 0;
-            if (Math.abs(gamma) < config.deadZone) gamma = 0;
+        // 死区过滤（忽略微小移动）
+        if (Math.abs(beta) < config.deadZone) beta = 0;
+        if (Math.abs(gamma) < config.deadZone) gamma = 0;
 
-            velocityX += gamma * config.accelerationFactor;
-            velocityY += beta * config.accelerationFactor;
-        });
+        velocityX += gamma * config.accelerationFactor;
+        velocityY += beta * config.accelerationFactor;
+      });
 
-        // 窗口大小变化处理（重要！）
-        window.addEventListener('resize', () => {
-            init(); // 重置边界
-            velocityX = velocityY = 0; // 清除速度
-        });
+      // 窗口大小变化处理（重要！）
+      window.addEventListener("resize", () => {
+        init(); // 重置边界
+        velocityX = velocityY = 0; // 清除速度
+      });
 
-        // 启动
-        init();
-        update();
+      // 启动
+      init();
+      update();
     </script>
-</body>
+  </body>
 </html>
