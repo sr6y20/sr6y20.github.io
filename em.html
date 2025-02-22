@@ -27,43 +27,67 @@
 
     <script>
       // 获取小球元素
-      const ball = document.getElementById("ball");
+const ball = document.getElementById('ball');
 
-      // 获取屏幕的宽度和高度
-      const screenWidth = window.innerWidth;
-      const screenHeight = window.innerHeight;
+// 获取屏幕的宽度和高度
+const screenWidth = window.innerWidth;
+const screenHeight = window.innerHeight;
 
-      // 初始化小球的位置
-      let posX = screenWidth / 2;
-      let posY = screenHeight / 2;
+// 初始化小球的位置
+let posX = screenWidth / 2;
+let posY = screenHeight / 2;
 
-      // 更新小球的位置
-      function updateBallPosition(beta, gamma) {
-        // 根据 beta 和 gamma 值调整小球的位置
-        posX += gamma * 0.1; // gamma 控制左右移动
-        posY += beta * 0.1; // beta 控制上下移动
+// 初始化小球的速度
+let velocityX = 0;
+let velocityY = 0;
 
-        // 限制小球在屏幕范围内
-        posX = Math.max(0, Math.min(screenWidth - ball.offsetWidth, posX));
-        posY = Math.max(0, Math.min(screenHeight - ball.offsetHeight, posY));
+// 惯性衰减系数（越小越慢）
+const damping = 0.95;
 
-        // 更新小球的位置
-        ball.style.left = `${posX}px`;
-        ball.style.top = `${posY}px`;
-      }
+// 更新小球的位置
+function updateBallPosition(beta, gamma) {
+    // 根据 beta 和 gamma 值调整小球的速度
+    velocityX += gamma * 0.1; // gamma 控制左右移动
+    velocityY += beta * 0.1;  // beta 控制上下移动
 
-      // 监听设备方向变化
-      window.addEventListener("deviceorientation", (event) => {
-        const beta = event.beta; // 前后倾斜（上下移动）
-        const gamma = event.gamma; // 左右倾斜（左右移动）
+    // 更新小球的位置
+    posX += velocityX;
+    posY += velocityY;
 
-        // 更新小球位置
-        updateBallPosition(beta, gamma);
-      });
+    // 限制小球在屏幕范围内
+    posX = Math.max(0, Math.min(screenWidth - ball.offsetWidth, posX));
+    posY = Math.max(0, Math.min(screenHeight - ball.offsetHeight, posY));
 
-      // 初始化小球位置
-      ball.style.left = `${posX}px`;
-      ball.style.top = `${posY}px`;
+    // 更新小球的位置
+    ball.style.left = `${posX}px`;
+    ball.style.top = `${posY}px`;
+
+    // 应用惯性衰减
+    velocityX *= damping;
+    velocityY *= damping;
+}
+
+// 监听设备方向变化
+window.addEventListener('deviceorientation', (event) => {
+    const beta = event.beta;  // 前后倾斜（上下移动）
+    const gamma = event.gamma; // 左右倾斜（左右移动）
+
+    // 更新小球位置
+    updateBallPosition(beta, gamma);
+});
+
+// 使用 requestAnimationFrame 实现平滑动画
+function animate() {
+    updateBallPosition(0, 0); // 即使没有新的方向数据，也继续更新位置（惯性）
+    requestAnimationFrame(animate);
+}
+
+// 启动动画
+animate();
+
+// 初始化小球位置
+ball.style.left = `${posX}px`;
+ball.style.top = `${posY}px`;
     </script>
   </body>
 </html>
