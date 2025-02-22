@@ -3,91 +3,156 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Device Orientation Ball Movement</title>
+    <title>高级小球控制</title>
     <style>
       body {
         margin: 0;
         overflow: hidden;
-        background: #f0f0f0;
+        background: #2c3e50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
       }
       #ball {
         position: absolute;
         width: 50px;
         height: 50px;
-        background: #ff6f61;
+        background: radial-gradient(circle at 30% 30%, #ff6f61, #e74c3c);
         border-radius: 50%;
-        top: 50%;
-        left: 50%;
+        box-shadow: 0 0 20px rgba(231, 76, 60, 0.5),
+          0 5px 15px rgba(0, 0, 0, 0.3);
         transform: translate(-50%, -50%);
+        transition: transform 0.1s;
+      }
+      #ball::after {
+        content: "";
+        position: absolute;
+        top: 15%;
+        left: 15%;
+        width: 20%;
+        height: 20%;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+      }
+      #permissionBtn {
+        position: fixed;
+        top: 20px;
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
+    <button id="permissionBtn">请求震动权限</button>
     <div id="ball"></div>
-
     <script>
-      // 获取小球元素
-const ball = document.getElementById('ball');
+      // 获取元素
+      const ball = document.getElementById("ball");
+      const permissionBtn = document.getElementById("permissionBtn");
 
-// 获取屏幕的宽度和高度
-const screenWidth = window.innerWidth;
-const screenHeight = window.innerHeight;
+      // 屏幕尺寸和边界
+      let screenWidth = window.innerWidth;
+      let screenHeight = window.innerHeight;
 
-// 初始化小球的位置
-let posX = screenWidth / 2;
-let posY = screenHeight / 2;
+      // 初始化参数
+      let posX = screenWidth / 2;
+      let posY = screenHeight / 2;
+      let velocityX = 0;
+      let velocityY = 0;
 
-// 初始化小球的速度
-let velocityX = 0;
-let velocityY = 0;
+      // 物理参数
+      const accelerationFactor = 0.05; // 加速度系数（减小速度）
+      const damping = 0.92; // 阻尼系数（增大减速）
+      const bounceFactor = 0.8; // 边界反弹系数
+      const maxVibration = 50; // 最大震动时长(ms)
 
-// 惯性衰减系数（越小越慢）
-const damping = 0.95;
+      // 请求震动权限
+      permissionBtn.addEventListener("click", async () => {
+        try {
+          if (navigator.vibrate) {
+            await navigator.permissions.query({ name: "vibrate" });
+            navigator.vibrate(10); // 短暂震动测试
+            permissionBtn.style.display = "none";
+          }
+        } catch (e) {
+          console.log("Vibration API not supported");
+        }
+      });
 
-// 更新小球的位置
-function updateBallPosition(beta, gamma) {
-    // 根据 beta 和 gamma 值调整小球的速度
-    velocityX += gamma * 0.1; // gamma 控制左右移动
-    velocityY += beta * 0.1;  // beta 控制上下移动
+      // 更新小球位置（含边界反弹）
+      function update() {
+        // 更新位置
+        posX += velocityX;
+        posY += velocityY;
 
-    // 更新小球的位置
-    posX += velocityX;
-    posY += velocityY;
+        // 边界检测与反弹
+        const ballRadius = ball.offsetWidth / 2;
+        let bounced = false;
 
-    // 限制小球在屏幕范围内
-    posX = Math.max(0, Math.min(screenWidth - ball.offsetWidth, posX));
-    posY = Math.max(0, Math.min(screenHeight - ball.offsetHeight, posY));
+        if (posX < ballRadius) {
+          velocityX *= -bounceFactor;
+          posX = ballRadius;
+          bounced = true;
+        } else if (posX > screenWidth - ballRadius) {
+          velocityX *= -bounceFactor;
+          posX = screenWidth - ballRadius;
+          bounced = true;
+        }
 
-    // 更新小球的位置
-    ball.style.left = `${posX}px`;
-    ball.style.top = `${posY}px`;
+        if (posY < ballRadius) {
+          velocityY *= -bounceFactor;
+          posY = ballRadius;
+          bounced = true;
+        } else if (posY > screenHeight - ballRadius) {
+          velocityY *= -bounceFactor;
+          posY = screenHeight - ballRadius;
+          bounced = true;
+        }
 
-    // 应用惯性衰减
-    velocityX *= damping;
-    velocityY *= damping;
-}
+        // 触觉反馈（需要用户先点击按钮授权）
+        if (bounced && navigator.vibrate) {
+          const intensity = Math.min(
+            Math.abs(velocityX) + Math.abs(velocityY),
+            maxVibration
+          );
+          navigator.vibrate(intensity);
+        }
 
-// 监听设备方向变化
-window.addEventListener('deviceorientation', (event) => {
-    const beta = event.beta;  // 前后倾斜（上下移动）
-    const gamma = event.gamma; // 左右倾斜（左右移动）
+        // 应用阻尼
+        velocityX *= damping;
+        velocityY *= damping;
 
-    // 更新小球位置
-    updateBallPosition(beta, gamma);
-});
+        // 更新位置
+        ball.style.left = `${posX}px`;
+        ball.style.top = `${posY}px`;
 
-// 使用 requestAnimationFrame 实现平滑动画
-function animate() {
-    updateBallPosition(0, 0); // 即使没有新的方向数据，也继续更新位置（惯性）
-    requestAnimationFrame(animate);
-}
+        // 3D 倾斜效果
+        const tiltX = velocityY * 0.5;
+        const tiltY = velocityX * 0.5;
+        ball.style.transform = `translate(-50%, -50%) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
 
-// 启动动画
-animate();
+        requestAnimationFrame(update);
+      }
 
-// 初始化小球位置
-ball.style.left = `${posX}px`;
-ball.style.top = `${posY}px`;
+      // 设备方向监听
+      window.addEventListener("deviceorientation", (event) => {
+        velocityX += event.gamma * accelerationFactor; // 左右倾斜
+        velocityY += event.beta * accelerationFactor; // 前后倾斜
+      });
+
+      // 窗口大小变化处理
+      window.addEventListener("resize", () => {
+        screenWidth = window.innerWidth;
+        screenHeight = window.innerHeight;
+      });
+
+      // 启动动画
+      update();
     </script>
   </body>
 </html>
