@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -82,6 +82,17 @@
         }
 
         // 震动权限请求（同之前版本）
+        permissionBtn.addEventListener('click', async () => {
+            try {
+                if (navigator.vibrate) {
+                    await navigator.permissions.query({ name: 'vibrate' });
+                    navigator.vibrate(10); // 短暂震动测试
+                    permissionBtn.style.display = 'none';
+                }
+            } catch (e) {
+                console.log('Vibration API not supported');
+            }
+        });
 
         // 更新函数（含防抖动优化）
         function update() {
