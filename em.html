@@ -45,11 +45,26 @@
         border-radius: 5px;
         cursor: pointer;
       }
+      #emoji {
+        position: absolute;
+        font-size: 40px;
+        transition: all 0.3s;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .calm {
+        filter: drop-shadow(0 0 10px #00ff00);
+      }
+      .scared {
+        filter: drop-shadow(0 0 10px #ff0000);
+      }
     </style>
   </head>
   <body>
     <button id="permissionBtn">请求震动权限</button>
     <div id="ball"></div>
+    <div id="emoji">😃</div>
+
     <script>
       // 获取元素
       const ball = document.getElementById("ball");
@@ -57,8 +72,8 @@
 
       // 物理参数配置
       const config = {
-        accelerationFactor: 0.1, // 加速度系数（增大灵敏度）
-        damping: 0.88, // 阻尼系数（更快减速）
+        accelerationFactor: 0.05, // 加速度系数（增大灵敏度）
+        damping: 0.92, // 阻尼系数（更快减速）
         bounceFactor: 0.05, // 反弹力度
         minSpeed: 0.1, // 最小速度（低于此值会停止）
         deadZone: 5, // 陀螺仪死区（忽略微小移动）
@@ -70,6 +85,29 @@
       let posX, posY;
       let velocityX = 0,
         velocityY = 0;
+
+      // 新增Emoji参数
+      const emojiConfig = {
+        baseSpeed: 2,
+        panicDistance: 200,
+        maxSpeed: 5,
+        calmSpeed: 0.5,
+        updateInterval: 100,
+      };
+
+      let emoji = document.getElementById("emoji");
+      let emojiX = 0,
+        emojiY = 0,
+        emojiVX = 0,
+        emojiVY = 0;
+
+      // 初始化Emoji位置
+      function initEmoji() {
+        emojiX = Math.random() * (screenWidth - 100) + 50;
+        emojiY = Math.random() * (screenHeight - 100) + 50;
+        emoji.style.left = `${emojiX}px`;
+        emoji.style.top = `${emojiY}px`;
+      }
 
       // 初始化函数
       function init() {
@@ -103,6 +141,49 @@
         // 边界碰撞检测（精确到像素）
         const ballRadius = 25; // 明确指定半径（避免offsetWidth误差）
         let bounced = false;
+
+        // 新增Emoji智能移动
+        const dx = posX - emojiX;
+        const dy = posY - emojiY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // 根据距离调整表情和速度
+        if (distance < emojiConfig.panicDistance) {
+          // 恐慌状态
+          emoji.textContent = "😰";
+          emoji.className = "scared";
+
+          // 计算逃离方向
+          const angle = Math.atan2(dy, dx);
+          const speed = Math.min(
+            emojiConfig.baseSpeed + (emojiConfig.panicDistance - distance) / 50,
+            emojiConfig.maxSpeed
+          );
+
+          emojiVX = -Math.cos(angle) * speed;
+          emojiVY = -Math.sin(angle) * speed;
+        } else {
+          // 平静状态
+          emoji.textContent = "😃";
+          emoji.className = "calm";
+
+          // 随机漫步
+          if (Math.random() < 0.02) {
+            emojiVX = (Math.random() - 0.5) * emojiConfig.calmSpeed;
+            emojiVY = (Math.random() - 0.5) * emojiConfig.calmSpeed;
+          }
+        }
+
+        // 更新Emoji位置
+        emojiX += emojiVX;
+        emojiY += emojiVY;
+
+        // Emoji边界检测
+        emojiX = Math.max(30, Math.min(screenWidth - 30, emojiX));
+        emojiY = Math.max(30, Math.min(screenHeight - 30, emojiY));
+
+        emoji.style.left = `${emojiX}px`;
+        emoji.style.top = `${emojiY}px`;
 
         // 水平边界
         if (posX < ballRadius) {
@@ -169,11 +250,13 @@
       // 窗口大小变化处理（重要！）
       window.addEventListener("resize", () => {
         init(); // 重置边界
+        initEmoji();
         velocityX = velocityY = 0; // 清除速度
       });
 
       // 启动
       init();
+      initEmoji();
       update();
     </script>
   </body>
