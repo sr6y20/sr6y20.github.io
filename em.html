@@ -1,263 +1,265 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>高级小球控制 - 优化版</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能追逐游戏</title>
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        background: #2c3e50;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-      }
-      #ball {
-        position: absolute;
-        width: 50px;
-        height: 50px;
-        background: radial-gradient(circle at 30% 30%, #ff6f61, #e74c3c);
-        border-radius: 50%;
-        box-shadow: 0 0 20px rgba(231, 76, 60, 0.5),
-          0 5px 15px rgba(0, 0, 0, 0.3);
-        transform: translate(-50%, -50%);
-        transition: transform 0.1s;
-      }
-      #ball::after {
-        content: "";
-        position: absolute;
-        top: 15%;
-        left: 15%;
-        width: 20%;
-        height: 20%;
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 50%;
-      }
-      #permissionBtn {
-        position: fixed;
-        top: 20px;
-        padding: 10px 20px;
-        background: #3498db;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-      }
-      #emoji {
-        position: absolute;
-        font-size: 40px;
-        transition: all 0.3s;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-      }
-      .calm {
-        filter: drop-shadow(0 0 10px #00ff00);
-      }
-      .scared {
-        filter: drop-shadow(0 0 10px #ff0000);
-      }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #ball {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle at 30% 30%, #ff6f61, #e74c3c);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5),
+                0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s;
+        }
+        #ball::after {
+            content: "";
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 20%;
+            height: 20%;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+        }
+        #permissionBtn {
+            position: fixed;
+            top: 20px;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #emoji {
+            position: absolute;
+            font-size: 40px;
+            transition: all 0.3s;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .calm { filter: drop-shadow(0 0 15px #00ff00a0); }
+        .scared { filter: drop-shadow(0 0 15px #ff0000a0); }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <button id="permissionBtn">请求震动权限</button>
     <div id="ball"></div>
     <div id="emoji">😃</div>
 
     <script>
-      // 获取元素
-      const ball = document.getElementById("ball");
-      const permissionBtn = document.getElementById("permissionBtn");
+        // 元素获取
+        const ball = document.getElementById("ball");
+        const emoji = document.getElementById("emoji");
+        const permissionBtn = document.getElementById("permissionBtn");
 
-      // 物理参数配置
-      const config = {
-        accelerationFactor: 0.05, // 加速度系数（增大灵敏度）
-        damping: 0.92, // 阻尼系数（更快减速）
-        bounceFactor: 0.05, // 反弹力度
-        minSpeed: 0.1, // 最小速度（低于此值会停止）
-        deadZone: 5, // 陀螺仪死区（忽略微小移动）
-        maxVibration: 30, // 最大震动时长
-      };
+        // 物理参数配置
+        const config = {
+            accelerationFactor: 0.02,   // 加速度系数
+            damping: 0.95,              // 阻尼系数
+            maxSpeed: 3,                // 最大速度
+            bounceFactor: 0.05,         // 反弹力度
+            minSpeed: 0.1,              // 最小速度
+            deadZone: 3,                // 陀螺仪死区
+            maxVibration: 20            // 最大震动时长
+        };
 
-      // 初始化状态
-      let screenWidth, screenHeight;
-      let posX, posY;
-      let velocityX = 0,
-        velocityY = 0;
+        // Emoji参数配置
+        const emojiConfig = {
+            baseSpeed: 1,               // 基础移动速度
+            panicDistance: 150,         // 开始逃跑的距离
+            maxSpeed: 3,               // 最大逃跑速度
+            calmSpeed: 0.3,            // 平静状态移动速度
+            updateInterval: 100         // AI反应间隔
+        };
 
-      // 新增Emoji参数
-      const emojiConfig = {
-        baseSpeed: 2,
-        panicDistance: 200,
-        maxSpeed: 5,
-        calmSpeed: 0.5,
-        updateInterval: 100,
-      };
+        // 系统状态
+        let screenWidth, screenHeight;
+        let posX, posY;
+        let velocityX = 0, velocityY = 0;
+        let emojiX = 0, emojiY = 0, emojiVX = 0, emojiVY = 0;
+        let smoothBeta = 0, smoothGamma = 0;
 
-      let emoji = document.getElementById("emoji");
-      let emojiX = 0,
-        emojiY = 0,
-        emojiVX = 0,
-        emojiVY = 0;
+        // 初始化函数
+        function init() {
+            screenWidth = window.innerWidth;
+            screenHeight = window.innerHeight;
+            
+            // 小球初始位置
+            posX = Math.min(screenWidth - 25, Math.max(25, screenWidth / 2));
+            posY = Math.min(screenHeight - 25, Math.max(25, screenHeight / 2));
+            ball.style.left = `${posX}px`;
+            ball.style.top = `${posY}px`;
 
-      // 初始化Emoji位置
-      function initEmoji() {
-        emojiX = Math.random() * (screenWidth - 100) + 50;
-        emojiY = Math.random() * (screenHeight - 100) + 50;
-        emoji.style.left = `${emojiX}px`;
-        emoji.style.top = `${emojiY}px`;
-      }
-
-      // 初始化函数
-      function init() {
-        screenWidth = window.innerWidth;
-        screenHeight = window.innerHeight;
-        posX = Math.min(screenWidth - 25, Math.max(25, screenWidth / 2));
-        posY = Math.min(screenHeight - 25, Math.max(25, screenHeight / 2));
-        ball.style.left = `${posX}px`;
-        ball.style.top = `${posY}px`;
-      }
-
-      // 震动权限请求（同之前版本）
-      permissionBtn.addEventListener("click", async () => {
-        try {
-          if (navigator.vibrate) {
-            await navigator.permissions.query({ name: "vibrate" });
-            navigator.vibrate(10); // 短暂震动测试
-            permissionBtn.style.display = "none";
-          }
-        } catch (e) {
-          console.log("Vibration API not supported");
-        }
-      });
-
-      // 更新函数（含防抖动优化）
-      function update() {
-        // 更新位置
-        posX += velocityX;
-        posY += velocityY;
-
-        // 边界碰撞检测（精确到像素）
-        const ballRadius = 25; // 明确指定半径（避免offsetWidth误差）
-        let bounced = false;
-
-        // 新增Emoji智能移动
-        const dx = posX - emojiX;
-        const dy = posY - emojiY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        // 根据距离调整表情和速度
-        if (distance < emojiConfig.panicDistance) {
-          // 恐慌状态
-          emoji.textContent = "😰";
-          emoji.className = "scared";
-
-          // 计算逃离方向
-          const angle = Math.atan2(dy, dx);
-          const speed = Math.min(
-            emojiConfig.baseSpeed + (emojiConfig.panicDistance - distance) / 50,
-            emojiConfig.maxSpeed
-          );
-
-          emojiVX = -Math.cos(angle) * speed;
-          emojiVY = -Math.sin(angle) * speed;
-        } else {
-          // 平静状态
-          emoji.textContent = "😃";
-          emoji.className = "calm";
-
-          // 随机漫步
-          if (Math.random() < 0.02) {
-            emojiVX = (Math.random() - 0.5) * emojiConfig.calmSpeed;
-            emojiVY = (Math.random() - 0.5) * emojiConfig.calmSpeed;
-          }
+            // Emoji初始位置
+            initEmoji();
         }
 
-        // 更新Emoji位置
-        emojiX += emojiVX;
-        emojiY += emojiVY;
-
-        // Emoji边界检测
-        emojiX = Math.max(30, Math.min(screenWidth - 30, emojiX));
-        emojiY = Math.max(30, Math.min(screenHeight - 30, emojiY));
-
-        emoji.style.left = `${emojiX}px`;
-        emoji.style.top = `${emojiY}px`;
-
-        // 水平边界
-        if (posX < ballRadius) {
-          velocityX = Math.abs(velocityX) * config.bounceFactor;
-          posX = ballRadius;
-          bounced = true;
-        } else if (posX > screenWidth - ballRadius) {
-          velocityX = -Math.abs(velocityX) * config.bounceFactor;
-          posX = screenWidth - ballRadius;
-          bounced = true;
+        // Emoji初始化
+        function initEmoji() {
+            emojiX = Math.random() * (screenWidth - 100) + 50;
+            emojiY = Math.random() * (screenHeight - 100) + 50;
+            emoji.style.left = `${emojiX}px`;
+            emoji.style.top = `${emojiY}px`;
         }
 
-        // 垂直边界
-        if (posY < ballRadius) {
-          velocityY = Math.abs(velocityY) * config.bounceFactor;
-          posY = ballRadius;
-          bounced = true;
-        } else if (posY > screenHeight - ballRadius) {
-          velocityY = -Math.abs(velocityY) * config.bounceFactor;
-          posY = screenHeight - ballRadius;
-          bounced = true;
+        // 震动权限请求
+        permissionBtn.addEventListener("click", async () => {
+            try {
+                if (navigator.vibrate) {
+                    await navigator.permissions.query({ name: "vibrate" });
+                    navigator.vibrate(10);
+                    permissionBtn.style.display = "none";
+                }
+            } catch (e) {
+                console.log("Vibration API not supported");
+            }
+        });
+
+        // 游戏主循环
+        function update() {
+            // 更新小球位置
+            posX += velocityX;
+            posY += velocityY;
+
+            // 边界碰撞检测
+            const ballRadius = 25;
+            let bounced = false;
+
+            // 水平边界
+            if (posX < ballRadius) {
+                velocityX = Math.abs(velocityX) * config.bounceFactor;
+                posX = ballRadius;
+                bounced = true;
+            } else if (posX > screenWidth - ballRadius) {
+                velocityX = -Math.abs(velocityX) * config.bounceFactor;
+                posX = screenWidth - ballRadius;
+                bounced = true;
+            }
+
+            // 垂直边界
+            if (posY < ballRadius) {
+                velocityY = Math.abs(velocityY) * config.bounceFactor;
+                posY = ballRadius;
+                bounced = true;
+            } else if (posY > screenHeight - ballRadius) {
+                velocityY = -Math.abs(velocityY) * config.bounceFactor;
+                posY = screenHeight - ballRadius;
+                bounced = true;
+            }
+
+            // 触觉反馈
+            if (bounced && (Math.abs(velocityX) > 0.5 || Math.abs(velocityY) > 0.5)) {
+                const intensity = Math.min(
+                    (Math.abs(velocityX) + Math.abs(velocityY)) * 2,
+                    config.maxVibration
+                );
+                navigator.vibrate(intensity);
+            }
+
+            // 速度衰减
+            velocityX *= config.damping;
+            velocityY *= config.damping;
+            if (Math.abs(velocityX) < config.minSpeed) velocityX = 0;
+            if (Math.abs(velocityY) < config.minSpeed) velocityY = 0;
+
+            // 更新小球位置
+            ball.style.left = `${posX}px`;
+            ball.style.top = `${posY}px`;
+
+            // 倾斜效果
+            ball.style.transform = `translate(-50%, -50%) 
+                rotateX(${velocityY * 0.6}deg) 
+                rotateY(${velocityX * 0.6}deg)`;
+
+            // 更新Emoji行为
+            updateEmoji();
+            
+            requestAnimationFrame(update);
         }
 
-        // 触觉反馈优化（只在显著碰撞时触发）
-        if (bounced && (Math.abs(velocityX) > 1 || Math.abs(velocityY) > 1)) {
-          const intensity = Math.min(
-            (Math.abs(velocityX) + Math.abs(velocityY)) * 3,
-            config.maxVibration
-          );
-          navigator.vibrate(intensity);
+        // Emoji AI逻辑
+        function updateEmoji() {
+            const dx = posX - emojiX;
+            const dy = posY - emojiY;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            
+            if(distance < emojiConfig.panicDistance) {
+                // 恐慌状态
+                emoji.textContent = '😰';
+                emoji.className = 'scared';
+                
+                const angle = Math.atan2(dy, dx);
+                const speed = Math.min(
+                    emojiConfig.baseSpeed + (emojiConfig.panicDistance - distance)/40,
+                    emojiConfig.maxSpeed
+                );
+                
+                emojiVX = -Math.cos(angle) * speed;
+                emojiVY = -Math.sin(angle) * speed;
+            } else {
+                // 平静状态
+                emoji.textContent = '😃';
+                emoji.className = 'calm';
+                
+                if(Math.random() < 0.02) {
+                    emojiVX = (Math.random() - 0.5) * emojiConfig.calmSpeed;
+                    emojiVY = (Math.random() - 0.5) * emojiConfig.calmSpeed;
+                }
+            }
+
+            // 更新位置
+            emojiX += emojiVX;
+            emojiY += emojiVY;
+            
+            // 边界限制
+            emojiX = Math.max(30, Math.min(screenWidth - 30, emojiX));
+            emojiY = Math.max(30, Math.min(screenHeight - 30, emojiY));
+            
+            emoji.style.left = `${emojiX}px`;
+            emoji.style.top = `${emojiY}px`;
         }
 
-        // 速度衰减 + 防抖动停止
-        velocityX *= config.damping;
-        velocityY *= config.damping;
-        if (Math.abs(velocityX) < config.minSpeed) velocityX = 0;
-        if (Math.abs(velocityY) < config.minSpeed) velocityY = 0;
+        // 陀螺仪处理（带滤波）
+        window.addEventListener("deviceorientation", (event) => {
+            smoothBeta = 0.3 * (event.beta || 0) + 0.7 * smoothBeta;
+            smoothGamma = 0.3 * (event.gamma || 0) + 0.7 * smoothGamma;
 
-        // 更新位置
-        ball.style.left = `${posX}px`;
-        ball.style.top = `${posY}px`;
+            let beta = Math.abs(smoothBeta) < config.deadZone ? 0 : smoothBeta;
+            let gamma = Math.abs(smoothGamma) < config.deadZone ? 0 : smoothGamma;
 
-        // 3D 倾斜效果（优化平滑度）
-        ball.style.transform = `translate(-50%, -50%) 
-                rotateX(${velocityY * 0.8}deg) 
-                rotateY(${velocityX * 0.8}deg)`;
+            velocityX += gamma * config.accelerationFactor;
+            velocityY += beta * config.accelerationFactor;
 
-        requestAnimationFrame(update);
-      }
+            // 速度限制
+            velocityX = Math.max(-config.maxSpeed, Math.min(config.maxSpeed, velocityX));
+            velocityY = Math.max(-config.maxSpeed, Math.min(config.maxSpeed, velocityY));
+        });
 
-      // 陀螺仪监听（增加死区过滤）
-      window.addEventListener("deviceorientation", (event) => {
-        let beta = event.beta || 0;
-        let gamma = event.gamma || 0;
+        // 窗口大小变化处理
+        window.addEventListener("resize", () => {
+            init();
+            velocityX = velocityY = 0;
+        });
 
-        // 死区过滤（忽略微小移动）
-        if (Math.abs(beta) < config.deadZone) beta = 0;
-        if (Math.abs(gamma) < config.deadZone) gamma = 0;
-
-        velocityX += gamma * config.accelerationFactor;
-        velocityY += beta * config.accelerationFactor;
-      });
-
-      // 窗口大小变化处理（重要！）
-      window.addEventListener("resize", () => {
-        init(); // 重置边界
-        initEmoji();
-        velocityX = velocityY = 0; // 清除速度
-      });
-
-      // 启动
-      init();
-      initEmoji();
-      update();
+        // 启动游戏
+        init();
+        update();
     </script>
-  </body>
+</body>
 </html>
