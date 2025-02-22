@@ -3,50 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Device Orientation Detection</title>
+    <title>Device Orientation Ball Movement</title>
     <style>
       body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        margin-top: 50px;
+        margin: 0;
+        overflow: hidden;
+        background: #f0f0f0;
       }
-      #orientation {
-        font-size: 24px;
-        margin-top: 20px;
+      #ball {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        background: #ff6f61;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
       }
     </style>
   </head>
   <body>
-    <h1>Device Orientation Detection</h1>
-    <div id="orientation">
-      <p>Alpha (Z-axis): <span id="alpha">0</span></p>
-      <p>Beta (X-axis): <span id="beta">0</span></p>
-      <p>Gamma (Y-axis): <span id="gamma">0</span></p>
-    </div>
+    <div id="ball"></div>
 
     <script>
-      window.addEventListener("deviceorientation", function (event) {
-        // Alpha: Rotation around the Z-axis (0 to 360 degrees)
-        const alpha = event.alpha;
-        // Beta: Rotation around the X-axis (-180 to 180 degrees)
-        const beta = event.beta;
-        // Gamma: Rotation around the Y-axis (-90 to 90 degrees)
-        const gamma = event.gamma;
+      // 获取小球元素
+      const ball = document.getElementById("ball");
 
-        // Update the display with the orientation values
-        document.getElementById("alpha").textContent = alpha.toFixed(2);
-        document.getElementById("beta").textContent = beta.toFixed(2);
-        document.getElementById("gamma").textContent = gamma.toFixed(2);
+      // 获取屏幕的宽度和高度
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+
+      // 初始化小球的位置
+      let posX = screenWidth / 2;
+      let posY = screenHeight / 2;
+
+      // 更新小球的位置
+      function updateBallPosition(beta, gamma) {
+        // 根据 beta 和 gamma 值调整小球的位置
+        posX += gamma * 0.1; // gamma 控制左右移动
+        posY += beta * 0.1; // beta 控制上下移动
+
+        // 限制小球在屏幕范围内
+        posX = Math.max(0, Math.min(screenWidth - ball.offsetWidth, posX));
+        posY = Math.max(0, Math.min(screenHeight - ball.offsetHeight, posY));
+
+        // 更新小球的位置
+        ball.style.left = `${posX}px`;
+        ball.style.top = `${posY}px`;
+      }
+
+      // 监听设备方向变化
+      window.addEventListener("deviceorientation", (event) => {
+        const beta = event.beta; // 前后倾斜（上下移动）
+        const gamma = event.gamma; // 左右倾斜（左右移动）
+
+        // 更新小球位置
+        updateBallPosition(beta, gamma);
       });
 
-      // Optional: Handle device motion for more detailed information
-      window.addEventListener("devicemotion", function (event) {
-        const acceleration = event.acceleration;
-        const accelerationIncludingGravity = event.accelerationIncludingGravity;
-        const rotationRate = event.rotationRate;
-
-        // You can use these values for more advanced motion detection
-      });
+      // 初始化小球位置
+      ball.style.left = `${posX}px`;
+      ball.style.top = `${posY}px`;
     </script>
   </body>
 </html>
