@@ -35,9 +35,20 @@
         background: rgba(255, 255, 255, 0.8);
         border-radius: 50%;
       }
+      #permissionBtn {
+        position: fixed;
+        top: 20px;
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
+    <button id="permissionBtn">请求震动权限</button>
     <div id="ball"></div>
     <script>
       // 获取元素
@@ -70,11 +81,18 @@
         ball.style.top = `${posY}px`;
       }
 
-      // 震动权限请求
-      if (navigator.vibrate) {
+      // 震动权限请求（同之前版本）
+      permissionBtn.addEventListener("click", async () => {
+        try {
+          if (navigator.vibrate) {
             await navigator.permissions.query({ name: "vibrate" });
             navigator.vibrate(10); // 短暂震动测试
+            permissionBtn.style.display = "none";
           }
+        } catch (e) {
+          console.log("Vibration API not supported");
+        }
+      });
 
       // 更新函数（含防抖动优化）
       function update() {
@@ -128,8 +146,8 @@
         ball.style.top = `${posY}px`;
 
         // 3D 倾斜效果（优化平滑度）
-        ball.style.transform = `translate(-50%, -50%)
-                rotateX(${velocityY * 0.8}deg)
+        ball.style.transform = `translate(-50%, -50%) 
+                rotateX(${velocityY * 0.8}deg) 
                 rotateY(${velocityX * 0.8}deg)`;
 
         requestAnimationFrame(update);
